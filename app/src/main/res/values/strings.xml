@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">Sakura Restaurant</string>
+    <string name="welcome_message">Chào mừng đến với</string>
+    <string name="restaurant_name">SAKURA RESTAURANT</string>
+    <string name="view_menu">XEM THỰC ĐƠN</string>
+    <string name="cart">GIỎ HÀNG</string>
+    <string name="login">BẮT ĐẦU</string>
+    <string name="logout">ĐĂNG XUẤT</string>
+    <string name="username">Tên của bạn</string>
+    <string name="full_name">Họ và tên</string>
+    <string name="phone">Số điện thoại</string>
+    <string name="address">Địa chỉ giao hàng</string>
+    <string name="update_profile">CẬP NHẬT THÔNG TIN</string>
+    <string name="checkout">THANH TOÁN</string>
+    <string name="add_to_cart">THÊM</string>
+    <string name="empty_cart">Giỏ hàng trống</string>
+    <string name="delivery_info">🚚 Dịch vụ giao hàng</string>
+    <string name="login_instruction">Nhập tên để bắt đầu đặt món</string>
+    <string name="first_time_note">Lần đầu sử dụng? Chỉ cần nhập tên để tạo tài khoản mới!</string>
+</resources>
