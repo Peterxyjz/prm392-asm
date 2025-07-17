@@ -84,6 +84,27 @@
             android:name=".activity.MapActivity"
             android:exported="false" />
             
+        <!-- Owner Activities -->
+        <activity
+            android:name=".activity.owner.OwnerDashboardActivity"
+            android:exported="false" />
+            
+        <activity
+            android:name=".activity.owner.OwnerRevenueActivity"
+            android:exported="false" />
+            
+        <activity
+            android:name=".activity.owner.OwnerMenuActivity"
+            android:exported="false" />
+            
+        <activity
+            android:name=".activity.owner.OwnerOrderActivity"
+            android:exported="false" />
+            
+        <activity
+            android:name=".activity.owner.OwnerCustomerActivity"
+            android:exported="false" />
+            
     </application>
 
 </manifest>

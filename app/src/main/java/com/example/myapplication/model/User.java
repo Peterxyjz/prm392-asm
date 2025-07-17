@@ -15,6 +15,7 @@ public class User {
     private String phone;         // Số điện thoại
     private long createdDate;     // Ngày tạo tài khoản - NEW
     private boolean isVerified;   // Trạng thái xác thực - NEW
+    private String role;          // Vai trò (CUSTOMER/OWNER) - NEW
 
     /**
      * Constructor cho việc tạo user mới (với password)
@@ -28,6 +29,7 @@ public class User {
         this.phone = phone;
         this.createdDate = System.currentTimeMillis();
         this.isVerified = false;
+        this.role = "CUSTOMER";
     }
 
     /**
@@ -43,6 +45,7 @@ public class User {
         this.phone = phone;
         this.createdDate = createdDate;
         this.isVerified = isVerified;
+        this.role = "CUSTOMER";
     }
 
     /**
@@ -147,6 +150,9 @@ public class User {
     public boolean isVerified() { return isVerified; }
     public void setVerified(boolean verified) { isVerified = verified; }
 
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
+
     @Override
     public String toString() {
         return "User{" +
@@ -154,6 +160,7 @@ public class User {
                 ", email='" + email + '\'' +
                 ", fullName='" + fullName + '\'' +
                 ", phone='" + phone + '\'' +
+                ", role='" + role + '\'' +
                 ", isVerified=" + isVerified +
                 '}';
     }

@@ -176,7 +176,13 @@ public class LoginActivity extends AppCompatActivity {
         
         if (result.isSuccess()) {
             showSuccessMessage(result.getMessage());
-            navigateToMain();
+            
+            // Kiểm tra role và chuyển đến Activity tương ứng
+            if (userManager.isCurrentUserOwner()) {
+                navigateToOwnerDashboard();
+            } else {
+                navigateToMain();
+            }
         } else {
             showErrorMessage(result.getMessage());
         }
@@ -283,6 +289,20 @@ public class LoginActivity extends AppCompatActivity {
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
         finish();
+    }
+    
+    /**
+     * Chuyển đến Owner Dashboard
+     */
+    private void navigateToOwnerDashboard() {
+        try {
+            Intent intent = new Intent(this, com.example.myapplication.activity.owner.OwnerDashboardActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            finish();
+        } catch (Exception e) {
+            showErrorMessage("Lỗi không tìm thấy Owner Dashboard: " + e.getMessage());
+        }
     }
 
     /**

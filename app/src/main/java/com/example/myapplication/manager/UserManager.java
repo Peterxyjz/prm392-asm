@@ -23,6 +23,11 @@ public class UserManager {
     private static final String KEY_PHONE_SUFFIX = "_phone";
     private static final String KEY_CREATED_DATE_SUFFIX = "_created_date";
     private static final String KEY_VERIFIED_SUFFIX = "_verified";
+    private static final String KEY_ROLE_SUFFIX = "_role";
+    
+    // User roles
+    public static final String ROLE_CUSTOMER = "CUSTOMER";
+    public static final String ROLE_OWNER = "OWNER";
 
     private static UserManager instance;
     private SharedPreferences prefs;
@@ -31,6 +36,7 @@ public class UserManager {
     private UserManager(Context context) {
         this.context = context;
         this.prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        initializeOwnerAccount();
     }
 
     public static synchronized UserManager getInstance(Context context) {
@@ -79,6 +85,7 @@ public class UserManager {
 
         // Tạo user mới
         User newUser = new User(username, email, password, fullName, "Nhập địa chỉ giao hàng", phone);
+        newUser.setRole(ROLE_CUSTOMER);
         
         // Lưu user
         if (saveUser(newUser)) {
@@ -129,6 +136,7 @@ public class UserManager {
         } else {
             // Tạo user mới với thông tin mặc định (không có email/password)
             User newUser = new User(username, "", "default", "", "Nhập địa chỉ giao hàng", "");
+            newUser.setRole(ROLE_CUSTOMER);
             if (saveUser(newUser)) {
                 setCurrentUser(username);
                 return true;
@@ -208,6 +216,7 @@ public class UserManager {
             editor.putString(username + KEY_PHONE_SUFFIX, user.getPhone());
             editor.putLong(username + KEY_CREATED_DATE_SUFFIX, user.getCreatedDate());
             editor.putBoolean(username + KEY_VERIFIED_SUFFIX, user.isVerified());
+            editor.putString(username + KEY_ROLE_SUFFIX, user.getRole());
 
             // Thêm username vào danh sách registered users
             Set<String> registeredUsers = prefs.getStringSet(KEY_REGISTERED_USERS, new HashSet<>());
@@ -238,8 +247,11 @@ public class UserManager {
             String phone = prefs.getString(username + KEY_PHONE_SUFFIX, "");
             long createdDate = prefs.getLong(username + KEY_CREATED_DATE_SUFFIX, System.currentTimeMillis());
             boolean verified = prefs.getBoolean(username + KEY_VERIFIED_SUFFIX, false);
+            String role = prefs.getString(username + KEY_ROLE_SUFFIX, ROLE_CUSTOMER);
 
-            return new User(username, email, passwordHash, fullName, address, phone, createdDate, verified);
+            User user = new User(username, email, passwordHash, fullName, address, phone, createdDate, verified);
+            user.setRole(role);
+            return user;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -299,6 +311,31 @@ public class UserManager {
              .putBoolean(KEY_IS_LOGGED_IN, true)
              .putString(KEY_CURRENT_USERNAME, username)
              .apply();
+    }
+    
+    /**
+     * Khởi tạo tài khoản Owner mặc định
+     */
+    private void initializeOwnerAccount() {
+        String ownerUsername = "owner";
+        String ownerEmail = "owner@gmail.com";
+        String ownerPassword = "Huy123";
+        
+        if (!isUsernameExists(ownerUsername)) {
+            User ownerUser = new User(ownerUsername, ownerEmail, ownerPassword, 
+                "Admin Owner", "Restaurant Address", "0123456789");
+            ownerUser.setRole(ROLE_OWNER);
+            ownerUser.setVerified(true);
+            saveUser(ownerUser);
+        }
+    }
+    
+    /**
+     * Kiểm tra user hiện tại có phải Owner không
+     */
+    public boolean isCurrentUserOwner() {
+        User currentUser = getCurrentUser();
+        return currentUser != null && ROLE_OWNER.equals(currentUser.getRole());
     }
 
     /**

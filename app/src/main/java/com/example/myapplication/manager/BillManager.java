@@ -13,6 +13,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Comparator;
 import java.util.stream.Collectors;
 
 /**
@@ -452,6 +453,39 @@ public class BillManager {
         } catch (Exception e) {
             Logger.e(TAG, "Error getting total spent by username", e);
             return 0;
+        }
+    }
+    
+    /**
+     * Get all bills from all users (for Owner)
+     */
+    public List<Bill> getAllBillsFromAllUsers() {
+        try {
+            List<Bill> allBills = new ArrayList<>();
+            
+            // Get all keys from SharedPreferences
+            for (String key : prefs.getAll().keySet()) {
+                if (key.endsWith(KEY_BILLS_SUFFIX)) {
+                    String json = prefs.getString(key, "");
+                    if (!json.isEmpty()) {
+                        Type type = new TypeToken<List<Bill>>(){}.getType();
+                        List<Bill> userBills = gson.fromJson(json, type);
+                        if (userBills != null) {
+                            allBills.addAll(userBills);
+                        }
+                    }
+                }
+            }
+            
+            // Sort by order date (newest first)
+            allBills.sort((bill1, bill2) -> bill2.getOrderDate().compareTo(bill1.getOrderDate()));
+            
+            Logger.d(TAG, "Loaded " + allBills.size() + " bills from all users");
+            return allBills;
+            
+        } catch (Exception e) {
+            Logger.e(TAG, "Error getting all bills from all users", e);
+            return new ArrayList<>();
         }
     }
 }
