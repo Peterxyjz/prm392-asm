@@ -9,6 +9,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.myapplication.R;
+import com.example.myapplication.manager.BillManager;
 import com.example.myapplication.model.User;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -30,11 +31,13 @@ public class OwnerCustomerAdapter extends RecyclerView.Adapter<OwnerCustomerAdap
     private Context context;
     private List<User> customerList;
     private OnCustomerClickListener listener;
+    private BillManager billManager;
 
     public OwnerCustomerAdapter(Context context, OnCustomerClickListener listener) {
         this.context = context;
         this.customerList = new ArrayList<>();
         this.listener = listener;
+        this.billManager = BillManager.getInstance(context);
     }
 
     public void updateCustomerList(List<User> newCustomerList) {
@@ -64,7 +67,7 @@ public class OwnerCustomerAdapter extends RecyclerView.Adapter<OwnerCustomerAdap
     }
 
     class CustomerViewHolder extends RecyclerView.ViewHolder {
-        private TextView tvCustomerName, tvCustomerEmail, tvCustomerPhone, tvCustomerAddress, tvJoinDate, tvOrderCount;
+        private TextView tvCustomerName, tvCustomerEmail, tvCustomerPhone, tvCustomerAddress, tvJoinDate, tvOrderCount, tvTotalSpent;
         private Button btnViewHistory, btnViewDetails;
 
         public CustomerViewHolder(@NonNull View itemView) {
@@ -76,6 +79,7 @@ public class OwnerCustomerAdapter extends RecyclerView.Adapter<OwnerCustomerAdap
             tvCustomerAddress = itemView.findViewById(R.id.tvCustomerAddress);
             tvJoinDate = itemView.findViewById(R.id.tvJoinDate);
             tvOrderCount = itemView.findViewById(R.id.tvOrderCount);
+            tvTotalSpent = itemView.findViewById(R.id.tvTotalSpent);
             
             btnViewHistory = itemView.findViewById(R.id.btnViewHistory);
             btnViewDetails = itemView.findViewById(R.id.btnViewDetails);
@@ -93,10 +97,20 @@ public class OwnerCustomerAdapter extends RecyclerView.Adapter<OwnerCustomerAdap
             String joinDate = sdf.format(new Date(customer.getCreatedDate()));
             tvJoinDate.setText("Tham gia: " + joinDate);
             
-            // TODO: Get actual order count from database
-            // For now, mock data
-            int orderCount = (int) (Math.random() * 20) + 1;
+            // Get actual order count and total spent from BillManager
+            int orderCount = billManager.getBillCountByUsername(customer.getUsername());
+            double totalSpent = billManager.getTotalSpentByUsername(customer.getUsername());
+            
             tvOrderCount.setText(orderCount + " đơn hàng");
+            
+            // Show total spent if available
+            if (tvTotalSpent != null) {
+                if (totalSpent > 0) {
+                    tvTotalSpent.setText(String.format("%.0f₫", totalSpent));
+                } else {
+                    tvTotalSpent.setText("0₫");
+                }
+            }
             
             // Set click listeners
             btnViewDetails.setOnClickListener(v -> {

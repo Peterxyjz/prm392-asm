@@ -1,6 +1,12 @@
 package com.example.myapplication.activity.owner;
 
+import android.app.AlertDialog;
 import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -8,10 +14,14 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.myapplication.R;
 import com.example.myapplication.adapter.OwnerCustomerAdapter;
+import com.example.myapplication.manager.BillManager;
 import com.example.myapplication.manager.UserManager;
+import com.example.myapplication.model.Bill;
 import com.example.myapplication.model.User;
-import java.util.ArrayList;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * OwnerCustomerActivity - Quản lý khách hàng cho Owner
@@ -25,6 +35,7 @@ public class OwnerCustomerActivity extends AppCompatActivity implements OwnerCus
     
     // Data
     private UserManager userManager;
+    private BillManager billManager;
     private List<User> customerList;
 
     @Override
@@ -71,39 +82,226 @@ public class OwnerCustomerActivity extends AppCompatActivity implements OwnerCus
      */
     private void loadCustomerData() {
         userManager = UserManager.getInstance(this);
+        billManager = BillManager.getInstance(this);
         
-        // TODO: Implement method to get all customers from UserManager
-        // For now, create mock data
-        customerList = createMockCustomerData();
+        // Lấy tất cả khách hàng từ UserManager
+        customerList = userManager.getAllCustomers();
         customerAdapter.updateCustomerList(customerList);
+        
+        // Update title with customer count
+        updateTitle();
     }
 
     /**
-     * Tạo dữ liệu khách hàng mock
-     * TODO: Thay thế bằng dữ liệu thực từ database
+     * Cập nhật title với số lượng khách hàng
      */
-    private List<User> createMockCustomerData() {
-        List<User> mockCustomers = new ArrayList<>();
+    private void updateTitle() {
+        int totalCustomers = customerList != null ? customerList.size() : 0;
+        String title = String.format("Quản Lý Khách Hàng (%d)", totalCustomers);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setTitle(title);
+        }
+    }
+
+    /**
+     * Hiển thị chi tiết khách hàng với custom layout
+     */
+    private void showCustomerDetails(User customer) {
+        // Get additional statistics
+        int orderCount = billManager.getBillCountByUsername(customer.getUsername());
+        double totalSpent = billManager.getTotalSpentByUsername(customer.getUsername());
+        List<Bill> customerOrders = billManager.getBillsByUsername(customer.getUsername());
         
-        // Mock customer 1
-        User customer1 = new User("user1", "user1@gmail.com", "password", 
-            "Nguyễn Văn A", "123 Nguyễn Văn Cừ, Q5, TP.HCM", "0123456789");
-        customer1.setRole(UserManager.ROLE_CUSTOMER);
-        mockCustomers.add(customer1);
+        // Calculate additional stats
+        int completedOrders = 0;
+        int cancelledOrders = 0;
+        String lastOrderDate = "Chưa có đơn hàng";
         
-        // Mock customer 2
-        User customer2 = new User("user2", "user2@gmail.com", "password", 
-            "Trần Thị B", "456 Lê Lợi, Q1, TP.HCM", "0987654321");
-        customer2.setRole(UserManager.ROLE_CUSTOMER);
-        mockCustomers.add(customer2);
+        if (!customerOrders.isEmpty()) {
+            for (Bill order : customerOrders) {
+                if (Bill.STATUS_DELIVERED.equals(order.getStatus())) {
+                    completedOrders++;
+                } else if (Bill.STATUS_CANCELLED.equals(order.getStatus())) {
+                    cancelledOrders++;
+                }
+            }
+            
+            // Find most recent order
+            Bill mostRecentOrder = customerOrders.get(0);
+            for (Bill order : customerOrders) {
+                if (order.getOrderDate().after(mostRecentOrder.getOrderDate())) {
+                    mostRecentOrder = order;
+                }
+            }
+            
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
+            lastOrderDate = sdf.format(mostRecentOrder.getOrderDate());
+        }
+
+        // Create custom dialog layout
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_customer_details, null);
         
-        // Mock customer 3
-        User customer3 = new User("user3", "user3@gmail.com", "password", 
-            "Lê Văn C", "789 Hai Bà Trưng, Q3, TP.HCM", "0369852147");
-        customer3.setRole(UserManager.ROLE_CUSTOMER);
-        mockCustomers.add(customer3);
+        // Customer Info Section
+        TextView tvCustomerName = dialogView.findViewById(R.id.tvCustomerName);
+        TextView tvUsername = dialogView.findViewById(R.id.tvUsername);
+        TextView tvEmail = dialogView.findViewById(R.id.tvEmail);
+        TextView tvPhone = dialogView.findViewById(R.id.tvPhone);
+        TextView tvAddress = dialogView.findViewById(R.id.tvAddress);
+        TextView tvJoinDate = dialogView.findViewById(R.id.tvJoinDate);
+        TextView tvVerifiedStatus = dialogView.findViewById(R.id.tvVerifiedStatus);
         
-        return mockCustomers;
+        // Statistics Section
+        TextView tvTotalOrders = dialogView.findViewById(R.id.tvTotalOrders);
+        TextView tvCompletedOrders = dialogView.findViewById(R.id.tvCompletedOrders);
+        TextView tvCancelledOrders = dialogView.findViewById(R.id.tvCancelledOrders);
+        TextView tvTotalSpent = dialogView.findViewById(R.id.tvTotalSpent);
+        TextView tvLastOrder = dialogView.findViewById(R.id.tvLastOrder);
+        
+        // Set customer info
+        tvCustomerName.setText(customer.getFullName().isEmpty() ? customer.getUsername() : customer.getFullName());
+        tvUsername.setText(customer.getUsername());
+        tvEmail.setText(customer.getEmail().isEmpty() ? "Chưa có email" : customer.getEmail());
+        tvPhone.setText(customer.getPhone().isEmpty() ? "Chưa có số điện thoại" : customer.getPhone());
+        tvAddress.setText(customer.getAddress());
+        
+        SimpleDateFormat joinDateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+        tvJoinDate.setText(joinDateFormat.format(new Date(customer.getCreatedDate())));
+        
+        tvVerifiedStatus.setText(customer.isVerified() ? "Đã xác thực" : "Chưa xác thực");
+        tvVerifiedStatus.setTextColor(getResources().getColor(
+            customer.isVerified() ? android.R.color.holo_green_dark : android.R.color.holo_orange_dark
+        ));
+        
+        // Set statistics
+        tvTotalOrders.setText(String.valueOf(orderCount));
+        tvCompletedOrders.setText(String.valueOf(completedOrders));
+        tvCancelledOrders.setText(String.valueOf(cancelledOrders));
+        tvTotalSpent.setText(String.format("%.0f₫", totalSpent));
+        tvLastOrder.setText(lastOrderDate);
+        
+        // Show dialog
+        new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setPositiveButton("Đóng", null)
+                .setNeutralButton("Xem Lịch Sử", (dialog, which) -> {
+                    showCustomerOrderHistory(customer);
+                })
+                .show();
+    }
+
+    /**
+     * Hiển thị lịch sử đơn hàng của khách hàng
+     */
+    private void showCustomerOrderHistory(User customer) {
+        List<Bill> customerOrders = billManager.getBillsByUsername(customer.getUsername());
+        
+        if (customerOrders.isEmpty()) {
+            showToast("Khách hàng này chưa có đơn hàng nào");
+            return;
+        }
+        
+        // Sort orders by date (newest first)
+        customerOrders.sort((o1, o2) -> o2.getOrderDate().compareTo(o1.getOrderDate()));
+        
+        StringBuilder history = new StringBuilder();
+        history.append("📋 LỊCH SỬ ĐƠN HÀNG\n");
+        history.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+        history.append("👤 Khách hàng: ").append(customer.getFullName()).append("\n");
+        history.append("📊 Tổng cộng: ").append(customerOrders.size()).append(" đơn hàng\n\n");
+        
+        for (int i = 0; i < Math.min(customerOrders.size(), 10); i++) { // Show max 10 orders
+            Bill order = customerOrders.get(i);
+            
+            // Status emoji
+            String statusEmoji = getStatusEmoji(order.getStatus());
+            
+            history.append("🛍️ ĐƠN HÀNG #").append(order.getBillId()).append("\n");
+            history.append("├─ 📅 Ngày: ").append(order.getFormattedDate()).append("\n");
+            history.append("├─ 💰 Giá trị: ").append(String.format("%.0f₫", order.getTotalAmount())).append("\n");
+            history.append("├─ ").append(statusEmoji).append(" Trạng thái: ").append(order.getStatusName()).append("\n");
+            history.append("└─ 🍽️ Số món: ").append(order.getTotalItemCount()).append(" món\n");
+            
+            if (i < Math.min(customerOrders.size(), 10) - 1) {
+                history.append("\n");
+            }
+        }
+        
+        if (customerOrders.size() > 10) {
+            history.append("\n⋯ Và ").append(customerOrders.size() - 10).append(" đơn hàng khác nữa");
+        }
+        
+        new AlertDialog.Builder(this)
+                .setTitle("📋 Lịch Sử Đơn Hàng")
+                .setMessage(history.toString())
+                .setPositiveButton("Đóng", null)
+                .show();
+    }
+
+    /**
+     * Lấy emoji cho trạng thái đơn hàng
+     */
+    private String getStatusEmoji(String status) {
+        switch (status) {
+            case Bill.STATUS_PENDING: return "⏳";
+            case Bill.STATUS_CONFIRMED: return "✅";
+            case Bill.STATUS_PREPARING: return "👨‍🍳";
+            case Bill.STATUS_READY: return "🎯";
+            case Bill.STATUS_DELIVERING: return "🚚";
+            case Bill.STATUS_DELIVERED: return "✅";
+            case Bill.STATUS_CANCELLED: return "❌";
+            default: return "❓";
+        }
+    }
+
+    /**
+     * Hiển thị thống kê tổng quan
+     */
+    private void showCustomerStatistics() {
+        if (customerList == null || customerList.isEmpty()) {
+            showToast("Chưa có khách hàng nào");
+            return;
+        }
+        
+        int totalCustomers = customerList.size();
+        int activeCustomers = 0; // customers with at least 1 order
+        int verifiedCustomers = 0;
+        double totalRevenue = billManager.getTotalRevenue();
+        
+        for (User customer : customerList) {
+            if (customer.isVerified()) {
+                verifiedCustomers++;
+            }
+            
+            if (billManager.getBillCountByUsername(customer.getUsername()) > 0) {
+                activeCustomers++;
+            }
+        }
+        
+        StringBuilder stats = new StringBuilder();
+        stats.append("📊 THỐNG KÊ KHÁCH HÀNG\n");
+        stats.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
+        
+        stats.append("👥 TỔNG QUAN KHÁCH HÀNG\n");
+        stats.append("├─ 👤 Tổng số: ").append(totalCustomers).append(" khách hàng\n");
+        stats.append("├─ 🎯 Có đơn hàng: ").append(activeCustomers).append(" khách\n");
+        stats.append("├─ ✅ Đã xác thực: ").append(verifiedCustomers).append(" khách\n");
+        stats.append("└─ ❌ Chưa xác thực: ").append(totalCustomers - verifiedCustomers).append(" khách\n\n");
+        
+        stats.append("💰 THỐNG KÊ DOANH THU\n");
+        stats.append("├─ 💵 Tổng doanh thu: ").append(String.format("%.0f₫", totalRevenue)).append("\n");
+        
+        if (activeCustomers > 0) {
+            double avgRevenuePerCustomer = totalRevenue / activeCustomers;
+            stats.append("└─ 📊 TB/khách hàng: ").append(String.format("%.0f₫", avgRevenuePerCustomer)).append("\n");
+        } else {
+            stats.append("└─ 📊 TB/khách hàng: 0₫\n");
+        }
+        
+        new AlertDialog.Builder(this)
+                .setTitle("📊 Thống Kê Tổng Quan")
+                .setMessage(stats.toString())
+                .setPositiveButton("Đóng", null)
+                .show();
     }
 
     /**
@@ -113,17 +311,37 @@ public class OwnerCustomerActivity extends AppCompatActivity implements OwnerCus
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.owner_customer_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+        
+        if (id == R.id.action_refresh) {
+            loadCustomerData();
+            showToast("Đã làm mới danh sách khách hàng");
+            return true;
+        } else if (id == R.id.action_statistics) {
+            showCustomerStatistics();
+            return true;
+        }
+        
+        return super.onOptionsItemSelected(item);
+    }
+
     // OwnerCustomerAdapter.OnCustomerClickListener implementations
     @Override
     public void onCustomerClick(User customer) {
-        showToast("Xem thông tin chi tiết: " + customer.getFullName());
-        // TODO: Implement customer details view
+        showCustomerDetails(customer);
     }
 
     @Override
     public void onViewOrderHistory(User customer) {
-        showToast("Xem lịch sử đơn hàng của: " + customer.getFullName());
-        // TODO: Implement customer order history view
+        showCustomerOrderHistory(customer);
     }
 
     @Override

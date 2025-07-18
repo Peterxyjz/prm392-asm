@@ -4,8 +4,8 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
-    app:cardCornerRadius="8dp"
-    app:cardElevation="4dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="6dp"
     android:clickable="true"
     android:focusable="true">
 
@@ -21,7 +21,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginBottom="8dp">
+            android:layout_marginBottom="12dp">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -56,17 +56,38 @@
 
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/tvOrderCount"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="15 đơn hàng"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:textColor="@color/design_default_color_primary"
-                android:background="@drawable/circle_background"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="4dp" />
+                android:orientation="vertical"
+                android:gravity="end">
+
+                <TextView
+                    android:id="@+id/tvOrderCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="15 đơn hàng"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/design_default_color_primary"
+                    android:background="@drawable/circle_background"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="3dp"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/tvTotalSpent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="1,250,000₫"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:textColor="@android:color/holo_green_dark"
+                    android:background="@drawable/circle_background"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="3dp" />
+
+            </LinearLayout>
 
         </LinearLayout>
 
@@ -75,7 +96,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:layout_marginBottom="8dp">
+            android:layout_marginBottom="12dp">
 
             <!-- Email -->
             <LinearLayout
@@ -162,18 +183,19 @@
             <Button
                 android:id="@+id/btnViewDetails"
                 android:layout_width="wrap_content"
-                android:layout_height="36dp"
+                android:layout_height="40dp"
                 android:text="Chi Tiết"
                 android:textSize="12sp"
                 android:textColor="@color/design_default_color_primary"
                 android:background="@android:color/transparent"
                 android:layout_marginEnd="8dp"
-                android:minWidth="70dp" />
+                android:minWidth="70dp"
+                style="?android:attr/borderlessButtonStyle" />
 
             <Button
                 android:id="@+id/btnViewHistory"
                 android:layout_width="wrap_content"
-                android:layout_height="36dp"
+                android:layout_height="40dp"
                 android:text="Lịch Sử ĐH"
                 android:textSize="12sp"
                 android:textColor="@android:color/white"

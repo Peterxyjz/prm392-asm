@@ -5,6 +5,8 @@ import android.content.SharedPreferences;
 import com.example.myapplication.model.User;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
  * Enhanced UserManager với support cho Sign Up/Login với email và password
@@ -198,6 +200,40 @@ public class UserManager {
              .putBoolean(KEY_IS_LOGGED_IN, false)
              .putString(KEY_CURRENT_USERNAME, "")
              .apply();
+    }
+
+    /**
+     * Lấy tất cả customers (cho Owner)
+     */
+    public List<User> getAllCustomers() {
+        List<User> customers = new ArrayList<>();
+        Set<String> registeredUsers = prefs.getStringSet(KEY_REGISTERED_USERS, new HashSet<>());
+        
+        for (String username : registeredUsers) {
+            User user = loadUserByUsername(username);
+            if (user != null && ROLE_CUSTOMER.equals(user.getRole())) {
+                customers.add(user);
+            }
+        }
+        
+        // Sort by created date (newest first)
+        customers.sort((u1, u2) -> Long.compare(u2.getCreatedDate(), u1.getCreatedDate()));
+        
+        return customers;
+    }
+
+    /**
+     * Lấy user theo username (cho Owner)
+     */
+    public User getUserByUsername(String username) {
+        return loadUserByUsername(username);
+    }
+
+    /**
+     * Lấy tổng số customers
+     */
+    public int getTotalCustomersCount() {
+        return getAllCustomers().size();
     }
 
     /**

@@ -2,8 +2,12 @@ package com.example.myapplication.activity.owner;
 
 import android.app.AlertDialog;
 import android.os.Bundle;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -13,7 +17,9 @@ import com.example.myapplication.R;
 import com.example.myapplication.adapter.OwnerOrderAdapter;
 import com.example.myapplication.manager.BillManager;
 import com.example.myapplication.model.Bill;
+import java.text.SimpleDateFormat;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * OwnerOrderActivity - Quản lý đơn hàng cho Owner
@@ -178,41 +184,129 @@ public class OwnerOrderActivity extends AppCompatActivity implements OwnerOrderA
     }
 
     /**
-     * Hiển thị chi tiết đơn hàng
+     * Hiển thị chi tiết đơn hàng với custom layout
      */
     private void showOrderDetails(Bill order) {
-        StringBuilder details = new StringBuilder();
-        details.append("Đơn hàng #").append(order.getBillId()).append("\n\n");
-        details.append("Khách hàng: ").append(order.getFullName()).append("\n");
-        details.append("SĐT: ").append(order.getPhone()).append("\n");
-        details.append("Địa chỉ: ").append(order.getDeliveryAddress()).append("\n");
-        details.append("Ngày đặt: ").append(order.getFormattedDate()).append("\n");
-        details.append("Trạng thái: ").append(order.getStatusName()).append("\n");
-        details.append("Tổng tiền: ").append(String.format("%.0f₫", order.getTotalAmount())).append("\n\n");
+        // Create custom dialog layout
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_order_details, null);
         
-        details.append("Chi tiết món:\n");
+        // Order Header Section
+        TextView tvOrderId = dialogView.findViewById(R.id.tvOrderId);
+        TextView tvOrderDate = dialogView.findViewById(R.id.tvOrderDate);
+        TextView tvOrderStatus = dialogView.findViewById(R.id.tvOrderStatus);
+        
+        // Customer Info Section
+        TextView tvCustomerName = dialogView.findViewById(R.id.tvCustomerName);
+        TextView tvPhone = dialogView.findViewById(R.id.tvPhone);
+        TextView tvAddress = dialogView.findViewById(R.id.tvAddress);
+        
+        // Order Summary Section
+        TextView tvItemCount = dialogView.findViewById(R.id.tvItemCount);
+        TextView tvTotalAmount = dialogView.findViewById(R.id.tvTotalAmount);
+        
+        // Order Items Container
+        LinearLayout layoutOrderItems = dialogView.findViewById(R.id.layoutOrderItems);
+        
+        // Set order header
+        tvOrderId.setText("Đơn hàng #" + order.getBillId());
+        tvOrderDate.setText(order.getFormattedDate());
+        tvOrderStatus.setText(order.getStatusName());
+        
+        // Set status color
+        int statusColor = getStatusColor(order.getStatus());
+        tvOrderStatus.setTextColor(statusColor);
+        
+        // Set customer info
+        tvCustomerName.setText(order.getFullName());
+        tvPhone.setText(order.getPhone());
+        tvAddress.setText(order.getDeliveryAddress());
+        
+        // Set order summary
+        tvItemCount.setText(String.valueOf(order.getTotalItemCount()));
+        tvTotalAmount.setText(String.format("%.0f₫", order.getTotalAmount()));
+        
+        // Add order items dynamically
+        populateOrderItems(layoutOrderItems, order);
+        
+        // Show dialog
+        new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setPositiveButton("Đóng", null)
+                .show();
+    }
+
+    /**
+     * Thêm các món ăn vào layout chi tiết đơn hàng
+     */
+    private void populateOrderItems(LinearLayout container, Bill order) {
+        container.removeAllViews();
+        
+        // Check if bill has BillItems (preferred) or CartItems
         if (order.getBillItems() != null && !order.getBillItems().isEmpty()) {
             for (Bill.BillItem item : order.getBillItems()) {
-                details.append("• ").append(item.getFoodName())
-                       .append(" x").append(item.getQuantity())
-                       .append(" = ").append(String.format("%.0f₫", item.getTotalPrice()))
-                       .append("\n");
+                View itemView = LayoutInflater.from(this).inflate(R.layout.item_order_detail_food, container, false);
+                
+                TextView tvFoodName = itemView.findViewById(R.id.tvFoodName);
+                TextView tvFoodPrice = itemView.findViewById(R.id.tvFoodPrice);
+                TextView tvQuantity = itemView.findViewById(R.id.tvQuantity);
+                TextView tvItemTotal = itemView.findViewById(R.id.tvItemTotal);
+                
+                tvFoodName.setText(item.getFoodName());
+                tvFoodPrice.setText(String.format("%.0f₫", item.getPrice()));
+                tvQuantity.setText(String.valueOf(item.getQuantity()));
+                tvItemTotal.setText(String.format("%.0f₫", item.getTotalPrice()));
+                
+                container.addView(itemView);
             }
         } else if (order.getItems() != null && !order.getItems().isEmpty()) {
             for (int i = 0; i < order.getItems().size(); i++) {
                 var item = order.getItems().get(i);
-                details.append("• ").append(item.getFoodItem().getName())
-                       .append(" x").append(item.getQuantity())
-                       .append(" = ").append(String.format("%.0f₫", item.getTotalPrice()))
-                       .append("\n");
+                View itemView = LayoutInflater.from(this).inflate(R.layout.item_order_detail_food, container, false);
+                
+                TextView tvFoodName = itemView.findViewById(R.id.tvFoodName);
+                TextView tvFoodPrice = itemView.findViewById(R.id.tvFoodPrice);
+                TextView tvQuantity = itemView.findViewById(R.id.tvQuantity);
+                TextView tvItemTotal = itemView.findViewById(R.id.tvItemTotal);
+                
+                tvFoodName.setText(item.getFoodItem().getName());
+                tvFoodPrice.setText(String.format("%.0f₫", item.getFoodItem().getPrice()));
+                tvQuantity.setText(String.valueOf(item.getQuantity()));
+                tvItemTotal.setText(String.format("%.0f₫", item.getTotalPrice()));
+                
+                container.addView(itemView);
             }
+        } else {
+            // No items found
+            TextView noItemsView = new TextView(this);
+            noItemsView.setText("Không có thông tin chi tiết món ăn");
+            noItemsView.setTextColor(getResources().getColor(android.R.color.darker_gray));
+            noItemsView.setPadding(16, 16, 16, 16);
+            container.addView(noItemsView);
         }
-        
-        new AlertDialog.Builder(this)
-                .setTitle("Chi Tiết Đơn Hàng")
-                .setMessage(details.toString())
-                .setPositiveButton("Đóng", null)
-                .show();
+    }
+
+    /**
+     * Lấy màu sắc cho trạng thái đơn hàng
+     */
+    private int getStatusColor(String status) {
+        switch (status) {
+            case Bill.STATUS_PENDING:
+                return getResources().getColor(android.R.color.holo_orange_dark);
+            case Bill.STATUS_CONFIRMED:
+                return getResources().getColor(android.R.color.holo_blue_bright);
+            case Bill.STATUS_PREPARING:
+                return getResources().getColor(android.R.color.holo_purple);
+            case Bill.STATUS_READY:
+                return getResources().getColor(android.R.color.holo_blue_dark);
+            case Bill.STATUS_DELIVERING:
+                return getResources().getColor(android.R.color.holo_orange_light);
+            case Bill.STATUS_DELIVERED:
+                return getResources().getColor(android.R.color.holo_green_dark);
+            case Bill.STATUS_CANCELLED:
+                return getResources().getColor(android.R.color.holo_red_dark);
+            default:
+                return getResources().getColor(android.R.color.darker_gray);
+        }
     }
 
     /**
