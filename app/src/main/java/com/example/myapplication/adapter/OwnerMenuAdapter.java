@@ -1,6 +1,7 @@
 package com.example.myapplication.adapter;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.myapplication.R;
 import com.example.myapplication.model.FoodItem;
 import com.example.myapplication.utils.PriceUtils;
+import com.example.myapplication.utils.ImageUtils;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -90,13 +92,11 @@ public class OwnerMenuAdapter extends RecyclerView.Adapter<OwnerMenuAdapter.Menu
             tvFoodPrice.setText(PriceUtils.formatPrice(foodItem.getPrice()));
             tvFoodCategory.setText(foodItem.getCategory());
             
-            // Set food image
-            ivFoodImage.setImageResource(foodItem.getImageResource());
+            // Load food image - ưu tiên ảnh custom, fallback về ảnh mặc định
+            loadFoodImage(foodItem);
             
-            // TODO: Hiển thị trạng thái available từ database
-            // For now, mock data
-            boolean isAvailable = true; // Mock data
-            updateAvailabilityStatus(isAvailable);
+            // Hiển thị trạng thái available từ data thực tế
+            updateAvailabilityStatus(foodItem.isAvailable());
             
             // Set click listeners
             btnEdit.setOnClickListener(v -> {
@@ -118,17 +118,43 @@ public class OwnerMenuAdapter extends RecyclerView.Adapter<OwnerMenuAdapter.Menu
             });
         }
 
+        /**
+         * Load ảnh món ăn - ưu tiên ảnh custom, fallback về ảnh mặc định
+         */
+        private void loadFoodImage(FoodItem foodItem) {
+            if (foodItem.hasCustomImage() && ImageUtils.imageExists(foodItem.getImageUrl())) {
+                // Load ảnh custom từ file
+                Bitmap customBitmap = ImageUtils.loadBitmapFromPath(foodItem.getImageUrl());
+                if (customBitmap != null) {
+                    ivFoodImage.setImageBitmap(customBitmap);
+                    return;
+                }
+            }
+            
+            // Fallback: sử dụng ảnh mặc định
+            ivFoodImage.setImageResource(foodItem.getImageResource());
+        }
+
+        /**
+         * Cập nhật hiển thị trạng thái available
+         */
         private void updateAvailabilityStatus(boolean isAvailable) {
             if (isAvailable) {
                 tvAvailabilityStatus.setText("CÒN MÓN");
                 tvAvailabilityStatus.setTextColor(context.getResources().getColor(android.R.color.holo_green_dark));
                 btnToggleAvailability.setText("Đặt Hết Món");
                 btnToggleAvailability.setBackgroundColor(context.getResources().getColor(android.R.color.holo_orange_dark));
+                
+                // Làm cho item sáng hơn khi còn món
+                itemView.setAlpha(1.0f);
             } else {
                 tvAvailabilityStatus.setText("HẾT MÓN");
                 tvAvailabilityStatus.setTextColor(context.getResources().getColor(android.R.color.holo_red_dark));
                 btnToggleAvailability.setText("Đặt Còn Món");
                 btnToggleAvailability.setBackgroundColor(context.getResources().getColor(android.R.color.holo_green_dark));
+                
+                // Làm mờ item khi hết món
+                itemView.setAlpha(0.7f);
             }
         }
     }

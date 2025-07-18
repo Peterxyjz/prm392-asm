@@ -17,6 +17,7 @@ import com.example.myapplication.activity.MapActivity;
 import com.example.myapplication.manager.CartManager;
 import com.example.myapplication.manager.UserManager;
 import com.example.myapplication.manager.BillManager;
+import com.example.myapplication.manager.FoodDataManager;
 import com.example.myapplication.model.User;
 import com.example.myapplication.utils.NotificationUtils;
 
@@ -45,6 +46,9 @@ public class MainActivity extends AppCompatActivity {
         
         // Khởi tạo UserManager để kiểm tra trạng thái đăng nhập
         userManager = UserManager.getInstance(this);
+        
+        // Khởi tạo FoodDataManager - quan trọng để load data món ăn
+        FoodDataManager.initialize(this);
         
         // Kiểm tra xem người dùng đã đăng nhập chưa
         if (!userManager.isLoggedIn()) {
@@ -94,26 +98,34 @@ public class MainActivity extends AppCompatActivity {
         // Nút xem thực đơn -> chuyển đến MenuActivity
         btnViewMenu.setOnClickListener(v -> {
             try {
-                android.util.Log.d("MainActivity", "Opening FallbackMenuActivity for testing");
-                Intent intent = new Intent(this, com.example.myapplication.activity.FallbackMenuActivity.class);
+                android.util.Log.d("MainActivity", "Opening MenuActivity");
+                Intent intent = new Intent(this, MenuActivity.class);
                 startActivity(intent);
             } catch (Exception e) {
-                android.util.Log.e("MainActivity", "Error opening FallbackMenuActivity: " + e.getMessage(), e);
+                android.util.Log.e("MainActivity", "Error opening MenuActivity: " + e.getMessage(), e);
                 android.widget.Toast.makeText(this, "Lỗi mở menu: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
                 
-                // Try SimpleMenuActivity as backup
+                // Try FallbackMenuActivity as backup
                 try {
-                    Intent simpleIntent = new Intent(this, com.example.myapplication.activity.SimpleMenuActivity.class);
-                    startActivity(simpleIntent);
+                    Intent fallbackIntent = new Intent(this, com.example.myapplication.activity.FallbackMenuActivity.class);
+                    startActivity(fallbackIntent);
                 } catch (Exception e2) {
-                    android.util.Log.e("MainActivity", "SimpleMenuActivity also failed: " + e2.getMessage(), e2);
+                    android.util.Log.e("MainActivity", "FallbackMenuActivity also failed: " + e2.getMessage(), e2);
                     
-                    // Open debug activity as last resort
+                    // Try SimpleMenuActivity as backup
                     try {
-                        Intent debugIntent = new Intent(this, com.example.myapplication.activity.DebugMenuActivity.class);
-                        startActivity(debugIntent);
+                        Intent simpleIntent = new Intent(this, com.example.myapplication.activity.SimpleMenuActivity.class);
+                        startActivity(simpleIntent);
                     } catch (Exception e3) {
-                        android.util.Log.e("MainActivity", "Even debug activity failed: " + e3.getMessage(), e3);
+                        android.util.Log.e("MainActivity", "SimpleMenuActivity also failed: " + e3.getMessage(), e3);
+                        
+                        // Open debug activity as last resort
+                        try {
+                            Intent debugIntent = new Intent(this, com.example.myapplication.activity.DebugMenuActivity.class);
+                            startActivity(debugIntent);
+                        } catch (Exception e4) {
+                            android.util.Log.e("MainActivity", "Even debug activity failed: " + e4.getMessage(), e4);
+                        }
                     }
                 }
             }
@@ -143,9 +155,9 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
         
-        // Long click on profile for debug notification
+        // Long click on profile for debug features
         btnProfile.setOnLongClickListener(v -> {
-            android.widget.Toast.makeText(this, "🔔 Debug Cart & Bills", android.widget.Toast.LENGTH_SHORT).show();
+            android.widget.Toast.makeText(this, "🔔 Debug Menu & Data", android.widget.Toast.LENGTH_SHORT).show();
             
             // Debug cart status
             cartManager.debugCartStatus();
@@ -153,6 +165,10 @@ public class MainActivity extends AppCompatActivity {
             // Debug bills status
             BillManager billManager = BillManager.getInstance(this);
             billManager.debugBillsStatus();
+            
+            // Debug food data status
+            android.util.Log.d("MainActivity", "Total food items: " + FoodDataManager.getAllFoodItems().size());
+            android.util.Log.d("MainActivity", "Available food items: " + FoodDataManager.getAvailableFoodItems().size());
             
             // Debug notification status
             NotificationUtils.debugNotificationStatus(this);

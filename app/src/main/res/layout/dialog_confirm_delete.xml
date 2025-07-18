@@ -5,45 +5,63 @@
     android:orientation="vertical"
     android:padding="24dp">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Xóa món ăn"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:textColor="#333"
+    <!-- Icon -->
+    <ImageView
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_gravity="center"
+        android:src="@android:drawable/ic_delete"
+        android:tint="@android:color/holo_red_dark"
         android:layout_marginBottom="16dp" />
 
+    <!-- Title -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Bạn có muốn xóa món này khỏi giỏ hàng?"
-        android:textSize="14sp"
+        android:text="Xóa món ăn"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#333"
+        android:gravity="center"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Message -->
+    <TextView
+        android:id="@+id/tvConfirmMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Bạn có chắc chắn muốn xóa món này không?\n\nHành động này không thể hoàn tác."
+        android:textSize="16sp"
         android:textColor="#666"
+        android:gravity="center"
         android:layout_marginBottom="24dp" />
 
+    <!-- Buttons -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="end">
+        android:gravity="center">
 
         <Button
             android:id="@+id/btnCancel"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:text="Hủy"
-            android:textColor="#666"
-            android:background="?android:attr/selectableItemBackground"
-            android:layout_marginEnd="16dp" />
+            android:textColor="@color/design_default_color_primary"
+            android:background="@android:color/transparent"
+            android:layout_marginEnd="8dp" />
 
         <Button
-            android:id="@+id/btnDelete"
-            android:layout_width="wrap_content"
+            android:id="@+id/btnConfirm"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:text="Xóa"
             android:textColor="@android:color/white"
-            android:backgroundTint="#d32f2f" />
+            android:background="@android:color/holo_red_dark"
+            android:layout_marginStart="8dp" />
 
     </LinearLayout>
 

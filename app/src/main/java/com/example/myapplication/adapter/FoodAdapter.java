@@ -1,5 +1,6 @@
 package com.example.myapplication.adapter;
 
+import android.graphics.Bitmap;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,6 +17,7 @@ import com.example.myapplication.activity.ProductDetailActivity;
 import com.example.myapplication.manager.CartManager;
 import com.example.myapplication.model.CartItem;
 import com.example.myapplication.model.FoodItem;
+import com.example.myapplication.utils.ImageUtils;
 import java.text.NumberFormat;
 import java.util.List;
 import java.util.Locale;
@@ -134,13 +136,8 @@ public class FoodAdapter extends RecyclerView.Adapter<FoodAdapter.FoodViewHolder
                 return;
             }
             
-            // Hiển thị thông tin cơ bản của món ăn
-            try {
-                ivFoodImage.setImageResource(foodItem.getImageResource());
-            } catch (Exception e) {
-                android.util.Log.e("FoodAdapter", "Error setting image resource: " + e.getMessage());
-                ivFoodImage.setImageResource(R.drawable.ramen); // Default image
-            }
+            // Load ảnh món ăn - ưu tiên ảnh custom, fallback về ảnh mặc định
+            loadFoodImage(foodItem);
             
             tvFoodName.setText(foodItem.getName() != null ? foodItem.getName() : "Unknown Food");
             tvFoodDescription.setText(foodItem.getDescription() != null ? foodItem.getDescription() : "");
@@ -224,6 +221,29 @@ public class FoodAdapter extends RecyclerView.Adapter<FoodAdapter.FoodViewHolder
                     }
                 }
             });
+        }
+
+        /**
+         * Load ảnh món ăn - ưu tiên ảnh custom, fallback về ảnh mặc định
+         */
+        private void loadFoodImage(FoodItem foodItem) {
+            try {
+                if (foodItem.hasCustomImage() && ImageUtils.imageExists(foodItem.getImageUrl())) {
+                    // Load ảnh custom từ file
+                    Bitmap customBitmap = ImageUtils.loadBitmapFromPath(foodItem.getImageUrl());
+                    if (customBitmap != null) {
+                        ivFoodImage.setImageBitmap(customBitmap);
+                        return;
+                    }
+                }
+                
+                // Fallback: sử dụng ảnh mặc định
+                ivFoodImage.setImageResource(foodItem.getImageResource());
+            } catch (Exception e) {
+                android.util.Log.e("FoodAdapter", "Error loading food image: " + e.getMessage());
+                // Fallback to default image on any error
+                ivFoodImage.setImageResource(R.drawable.ramen);
+            }
         }
     }
 }

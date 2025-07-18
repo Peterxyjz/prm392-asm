@@ -4,7 +4,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
@@ -18,6 +17,7 @@ import com.example.myapplication.manager.FoodDataManager;
 import com.example.myapplication.model.FoodItem;
 import java.text.NumberFormat;
 import java.util.List;
+import java.util.ArrayList;
 import com.example.myapplication.utils.DebugHelper;
 
 public class MenuActivity extends AppCompatActivity implements FoodAdapter.OnCartUpdateListener {
@@ -25,11 +25,11 @@ public class MenuActivity extends AppCompatActivity implements FoodAdapter.OnCar
     private LinearLayout layoutCategories;
     private TextView tvCartCountMenu;
     private LinearLayout btnCartFromMenu;
-    private ImageButton btnBack;
+    private LinearLayout btnBack; // Sửa từ ImageButton thành LinearLayout
 
     private FoodAdapter foodAdapter;
     private CartManager cartManager;
-    private List<FoodItem> allFoodItems;
+    private List<FoodItem> allAvailableFoodItems;
     private String selectedCategory = "All";
 
     @Override
@@ -41,6 +41,9 @@ public class MenuActivity extends AppCompatActivity implements FoodAdapter.OnCar
             setContentView(R.layout.activity_menu);
             DebugHelper.logViewState("MenuActivity", "Layout set successfully");
 
+            // Initialize data manager
+            FoodDataManager.initialize(this);
+
             initViews();
             DebugHelper.logViewState("MenuActivity", "Views initialized");
             
@@ -50,8 +53,9 @@ public class MenuActivity extends AppCompatActivity implements FoodAdapter.OnCar
             // Debug: Check food data integrity after basic setup
             DebugHelper.checkFoodDataIntegrity(this);
             
-            allFoodItems = FoodDataManager.getAllFoodItems();
-            android.util.Log.d("MenuActivity", "Got " + allFoodItems.size() + " food items");
+            // Load only available food items for customers
+            allAvailableFoodItems = FoodDataManager.getAvailableFoodItems();
+            android.util.Log.d("MenuActivity", "Got " + allAvailableFoodItems.size() + " available food items");
 
             setupRecyclerView();
             DebugHelper.logViewState("MenuActivity", "RecyclerView setup completed");
@@ -77,7 +81,7 @@ public class MenuActivity extends AppCompatActivity implements FoodAdapter.OnCar
             layoutCategories = findViewById(R.id.layoutCategories);
             tvCartCountMenu = findViewById(R.id.tvCartCountMenu);
             btnCartFromMenu = findViewById(R.id.btnCartFromMenu);
-            btnBack = findViewById(R.id.btnBack);
+            btnBack = findViewById(R.id.btnBack); // Sửa thành LinearLayout
             
             // Null checks
             if (recyclerViewFood == null) {
@@ -105,7 +109,7 @@ public class MenuActivity extends AppCompatActivity implements FoodAdapter.OnCar
 
     private void setupRecyclerView() {
         try {
-            foodAdapter = new FoodAdapter(allFoodItems, cartManager);
+            foodAdapter = new FoodAdapter(allAvailableFoodItems, cartManager);
             foodAdapter.setOnCartUpdateListener(this);
             recyclerViewFood.setLayoutManager(new LinearLayoutManager(this));
             recyclerViewFood.setAdapter(foodAdapter);
@@ -142,7 +146,7 @@ public class MenuActivity extends AppCompatActivity implements FoodAdapter.OnCar
                 
                 categoryButton.setOnClickListener(v -> {
                     selectedCategory = category;
-                    filterFoodItems(category);
+                    filterAvailableFoodItems(category);
                     updateCategoryButtons();
                 });
                 
@@ -171,14 +175,27 @@ public class MenuActivity extends AppCompatActivity implements FoodAdapter.OnCar
         }
     }
 
-    private void filterFoodItems(String category) {
-        List<FoodItem> filteredItems;
+    /**
+     * Filter món ăn theo category nhưng chỉ hiển thị món available
+     */
+    private void filterAvailableFoodItems(String category) {
+        List<FoodItem> filteredItems = new ArrayList<>();
+        
         if (category.equals("All")) {
-            filteredItems = FoodDataManager.getAllFoodItems();
+            // Lấy tất cả món available
+            filteredItems = FoodDataManager.getAvailableFoodItems();
         } else {
-            filteredItems = FoodDataManager.getFoodItemsByCategory(category);
+            // Lấy món theo category và chỉ những món available
+            List<FoodItem> categoryItems = FoodDataManager.getFoodItemsByCategory(category);
+            for (FoodItem item : categoryItems) {
+                if (item.isAvailable()) {
+                    filteredItems.add(item);
+                }
+            }
         }
+        
         foodAdapter.updateFoodItems(filteredItems);
+        android.util.Log.d("MenuActivity", "Filtered " + filteredItems.size() + " available items for category: " + category);
     }
 
     private void setupClickListeners() {
@@ -204,6 +221,10 @@ public class MenuActivity extends AppCompatActivity implements FoodAdapter.OnCar
     @Override
     protected void onResume() {
         super.onResume();
+        // Refresh available food items khi quay lại (có thể owner đã thay đổi trạng thái)
+        allAvailableFoodItems = FoodDataManager.getAvailableFoodItems();
+        filterAvailableFoodItems(selectedCategory);
+        
         updateCartCount();
         foodAdapter.notifyDataSetChanged(); // Refresh adapter to update cart states
     }

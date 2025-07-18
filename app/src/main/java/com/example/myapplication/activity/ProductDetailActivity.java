@@ -1,6 +1,7 @@
 package com.example.myapplication.activity;
 
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -10,12 +11,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.myapplication.R;
 import com.example.myapplication.manager.FoodDataManager;
 import com.example.myapplication.model.FoodItem;
+import com.example.myapplication.utils.ImageUtils;
 import java.text.NumberFormat;
 import java.util.Locale;
 
 /**
  * ProductDetailActivity - Màn hình chi tiết sản phẩm
- * FIXED: Added proper error handling, null checks, and crash prevention
+ * Updated để hỗ trợ FoodDataManager mới và load ảnh custom
  */
 public class ProductDetailActivity extends AppCompatActivity {
     
@@ -36,6 +38,9 @@ public class ProductDetailActivity extends AppCompatActivity {
         
         try {
             setContentView(R.layout.activity_product_detail);
+            
+            // Initialize data manager
+            FoodDataManager.initialize(this);
             
             // Get food ID from Intent with proper validation
             if (!validateIntent()) {
@@ -59,8 +64,7 @@ public class ProductDetailActivity extends AppCompatActivity {
     }
     
     /**
-     * SOLUTION 2: Validate Intent data before processing
-     * Prevents crashes from invalid or missing data
+     * Validate Intent data before processing
      */
     private boolean validateIntent() {
         try {
@@ -85,8 +89,7 @@ public class ProductDetailActivity extends AppCompatActivity {
     }
     
     /**
-     * SOLUTION 2: Load food item with proper null checking
-     * Prevents crashes from missing food items
+     * Load food item with proper null checking
      */
     private boolean loadFoodItem() {
         try {
@@ -107,7 +110,7 @@ public class ProductDetailActivity extends AppCompatActivity {
     }
     
     /**
-     * SOLUTION 2: Safe view initialization with null checks
+     * Safe view initialization with null checks
      */
     private void initViews() {
         try {
@@ -130,7 +133,7 @@ public class ProductDetailActivity extends AppCompatActivity {
     }
     
     /**
-     * SOLUTION 2: Safe manager initialization
+     * Safe manager initialization
      */
     private void initManagers() {
         try {
@@ -143,7 +146,7 @@ public class ProductDetailActivity extends AppCompatActivity {
     }
     
     /**
-     * SOLUTION 2: Safe display of food information with error handling
+     * Safe display of food information with error handling
      */
     private void displayFoodInfo() {
         try {
@@ -151,12 +154,8 @@ public class ProductDetailActivity extends AppCompatActivity {
                 return;
             }
             
-            // Safe image loading
-            try {
-                ivFoodImage.setImageResource(foodItem.getImageResource());
-            } catch (Exception e) {
-                ivFoodImage.setImageResource(R.drawable.sushi); // Fallback image
-            }
+            // Load ảnh món ăn - ưu tiên ảnh custom, fallback về ảnh mặc định
+            loadFoodImage();
             
             // Safe text setting
             tvFoodName.setText(foodItem.getName() != null ? foodItem.getName() : "Món ăn");
@@ -181,7 +180,30 @@ public class ProductDetailActivity extends AppCompatActivity {
     }
     
     /**
-     * SOLUTION 2: Safe click listener setup
+     * Load ảnh món ăn - ưu tiên ảnh custom, fallback về ảnh mặc định
+     */
+    private void loadFoodImage() {
+        try {
+            if (foodItem.hasCustomImage() && ImageUtils.imageExists(foodItem.getImageUrl())) {
+                // Load ảnh custom từ file
+                Bitmap customBitmap = ImageUtils.loadBitmapFromPath(foodItem.getImageUrl());
+                if (customBitmap != null) {
+                    ivFoodImage.setImageBitmap(customBitmap);
+                    return;
+                }
+            }
+            
+            // Fallback: sử dụng ảnh mặc định
+            ivFoodImage.setImageResource(foodItem.getImageResource());
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "Error loading food image: " + e.getMessage());
+            // Fallback to default image on any error
+            ivFoodImage.setImageResource(R.drawable.ramen);
+        }
+    }
+    
+    /**
+     * Safe click listener setup
      */
     private void setupClickListeners() {
         try {
@@ -199,7 +221,7 @@ public class ProductDetailActivity extends AppCompatActivity {
     }
     
     /**
-     * SOLUTION 2: Safe category name conversion
+     * Safe category name conversion
      */
     private String getCategoryName(String category) {
         try {
@@ -221,7 +243,7 @@ public class ProductDetailActivity extends AppCompatActivity {
     }
     
     /**
-     * SOLUTION 2: Centralized error handling
+     * Centralized error handling
      */
     private void showErrorAndFinish(String message) {
         try {
@@ -234,7 +256,7 @@ public class ProductDetailActivity extends AppCompatActivity {
     }
     
     /**
-     * SOLUTION 2: Override onBackPressed for safe back navigation
+     * Override onBackPressed for safe back navigation
      */
     @Override
     public void onBackPressed() {
