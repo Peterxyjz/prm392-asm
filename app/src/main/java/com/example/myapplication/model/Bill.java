@@ -42,7 +42,12 @@ public class Bill {
     }
     // Các trạng thái đơn hàng
     public static final String STATUS_PENDING = "PENDING";       // Chờ xử lý
+    public static final String STATUS_CONFIRMED = "CONFIRMED";   // Đã xác nhận
+    public static final String STATUS_PREPARING = "PREPARING";   // Đang chuẩn bị
+    public static final String STATUS_READY = "READY";           // Sẵn sàng giao
+    public static final String STATUS_DELIVERING = "DELIVERING"; // Đang giao hàng
     public static final String STATUS_DELIVERED = "DELIVERED";   // Đã giao hàng
+    public static final String STATUS_CANCELLED = "CANCELLED";   // Đã hủy
     
     // Thời gian tự động chuyển trạng thái (45 phút)
     public static final long AUTO_DELIVERY_TIME = 45 * 60 * 1000; // 45 minutes in milliseconds
@@ -140,7 +145,12 @@ public class Bill {
     public String getStatusName() {
         switch (status) {
             case STATUS_PENDING: return "Chờ xử lý";
+            case STATUS_CONFIRMED: return "Đã xác nhận";
+            case STATUS_PREPARING: return "Đang chuẩn bị";
+            case STATUS_READY: return "Sẵn sàng giao";
+            case STATUS_DELIVERING: return "Đang giao hàng";
             case STATUS_DELIVERED: return "Đã giao hàng";
+            case STATUS_CANCELLED: return "Đã hủy";
             default: return "Không xác định";
         }
     }
@@ -151,7 +161,12 @@ public class Bill {
     public String getStatusColor() {
         switch (status) {
             case STATUS_PENDING: return "#ff9800";      // Orange
+            case STATUS_CONFIRMED: return "#2196f3";    // Blue
+            case STATUS_PREPARING: return "#9c27b0";    // Purple
+            case STATUS_READY: return "#00bcd4";        // Cyan
+            case STATUS_DELIVERING: return "#ff5722";   // Deep Orange
             case STATUS_DELIVERED: return "#4caf50";    // Green
+            case STATUS_CANCELLED: return "#f44336";    // Red
             default: return "#666666";                  // Gray
         }
     }
@@ -161,7 +176,7 @@ public class Bill {
      * Nếu đơn hàng đã quá 45 phút thì chuyển thành DELIVERED
      */
     public void checkAndUpdateStatus() {
-        if (status.equals(STATUS_PENDING)) {
+        if (status.equals(STATUS_DELIVERING)) {
             long currentTime = System.currentTimeMillis();
             long orderTime = orderDate.getTime();
             
@@ -208,14 +223,49 @@ public class Bill {
      * Kiểm tra xem đơn hàng có thể hủy không
      */
     public boolean canCancel() {
-        return status.equals(STATUS_PENDING);
+        return status.equals(STATUS_PENDING) || status.equals(STATUS_CONFIRMED);
     }
     
     /**
      * Kiểm tra xem đơn hàng đã hoàn thành chưa
      */
     public boolean isCompleted() {
-        return status.equals(STATUS_DELIVERED);
+        return status.equals(STATUS_DELIVERED) || status.equals(STATUS_CANCELLED);
+    }
+    
+    /**
+     * Lấy trạng thái tiếp theo có thể chuyển đổi
+     */
+    public String getNextStatus() {
+        switch (status) {
+            case STATUS_PENDING: return STATUS_CONFIRMED;
+            case STATUS_CONFIRMED: return STATUS_PREPARING;
+            case STATUS_PREPARING: return STATUS_READY;
+            case STATUS_READY: return STATUS_DELIVERING;
+            case STATUS_DELIVERING: return STATUS_DELIVERED;
+            default: return null;
+        }
+    }
+    
+    /**
+     * Kiểm tra xem có thể chuyển sang trạng thái tiếp theo không
+     */
+    public boolean canAdvanceToNextStatus() {
+        return getNextStatus() != null && !isCompleted();
+    }
+    
+    /**
+     * Lấy tên action cho trạng thái hiện tại
+     */
+    public String getStatusActionName() {
+        switch (status) {
+            case STATUS_PENDING: return "Xác Nhận";
+            case STATUS_CONFIRMED: return "Bắt Đầu Làm";
+            case STATUS_PREPARING: return "Món Đã Xong";
+            case STATUS_READY: return "Bắt Đầu Giao";
+            case STATUS_DELIVERING: return "Đã Giao Xong";
+            default: return null;
+        }
     }
     
     @Override

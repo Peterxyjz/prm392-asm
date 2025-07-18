@@ -21,8 +21,8 @@ import java.util.List;
 public class OwnerOrderAdapter extends RecyclerView.Adapter<OwnerOrderAdapter.OrderViewHolder> {
 
     public interface OnOrderActionListener {
-        void onAcceptOrder(Bill order);
-        void onCompleteOrder(Bill order);
+        void onAdvanceOrderStatus(Bill order);
+        void onCancelOrder(Bill order);
         void onViewOrderDetails(Bill order);
     }
 
@@ -64,7 +64,7 @@ public class OwnerOrderAdapter extends RecyclerView.Adapter<OwnerOrderAdapter.Or
 
     class OrderViewHolder extends RecyclerView.ViewHolder {
         private TextView tvOrderId, tvCustomerName, tvOrderDate, tvTotalAmount, tvItemCount, tvStatus, tvDeliveryAddress;
-        private Button btnAccept, btnComplete, btnViewDetails;
+        private Button btnAdvance, btnCancel, btnViewDetails;
 
         public OrderViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -77,8 +77,8 @@ public class OwnerOrderAdapter extends RecyclerView.Adapter<OwnerOrderAdapter.Or
             tvStatus = itemView.findViewById(R.id.tvStatus);
             tvDeliveryAddress = itemView.findViewById(R.id.tvDeliveryAddress);
             
-            btnAccept = itemView.findViewById(R.id.btnAccept);
-            btnComplete = itemView.findViewById(R.id.btnComplete);
+            btnAdvance = itemView.findViewById(R.id.btnAccept); // Reuse existing button
+            btnCancel = itemView.findViewById(R.id.btnComplete); // Reuse existing button 
             btnViewDetails = itemView.findViewById(R.id.btnViewDetails);
         }
 
@@ -102,14 +102,29 @@ public class OwnerOrderAdapter extends RecyclerView.Adapter<OwnerOrderAdapter.Or
             String status = order.getCurrentStatus();
             tvStatus.setText(order.getStatusName());
             
-            // Set status color
+            // Set status color based on the status color from model
             int statusColor;
             switch (status) {
                 case Bill.STATUS_PENDING:
                     statusColor = context.getResources().getColor(android.R.color.holo_orange_dark);
                     break;
+                case Bill.STATUS_CONFIRMED:
+                    statusColor = context.getResources().getColor(android.R.color.holo_blue_bright);
+                    break;
+                case Bill.STATUS_PREPARING:
+                    statusColor = context.getResources().getColor(android.R.color.holo_purple);
+                    break;
+                case Bill.STATUS_READY:
+                    statusColor = context.getResources().getColor(android.R.color.holo_blue_dark);
+                    break;
+                case Bill.STATUS_DELIVERING:
+                    statusColor = context.getResources().getColor(android.R.color.holo_orange_light);
+                    break;
                 case Bill.STATUS_DELIVERED:
                     statusColor = context.getResources().getColor(android.R.color.holo_green_dark);
+                    break;
+                case Bill.STATUS_CANCELLED:
+                    statusColor = context.getResources().getColor(android.R.color.holo_red_dark);
                     break;
                 default:
                     statusColor = context.getResources().getColor(android.R.color.darker_gray);
@@ -122,31 +137,55 @@ public class OwnerOrderAdapter extends RecyclerView.Adapter<OwnerOrderAdapter.Or
             String status = order.getCurrentStatus();
             
             // Reset visibility
-            btnAccept.setVisibility(View.GONE);
-            btnComplete.setVisibility(View.GONE);
+            btnAdvance.setVisibility(View.GONE);
+            btnCancel.setVisibility(View.GONE);
             btnViewDetails.setVisibility(View.VISIBLE);
             
-            // Set button visibility based on status
-            switch (status) {
-                case Bill.STATUS_PENDING:
-                    btnAccept.setVisibility(View.VISIBLE);
-                    btnAccept.setText("Xác Nhận");
-                    break;
-                case Bill.STATUS_DELIVERED:
-                    // Order is completed, no action buttons needed
-                    break;
+            // Setup buttons based on order status
+            if (order.canAdvanceToNextStatus()) {
+                btnAdvance.setVisibility(View.VISIBLE);
+                btnAdvance.setText(order.getStatusActionName());
+                
+                // Set button color based on action
+                switch (status) {
+                    case Bill.STATUS_PENDING:
+                        btnAdvance.setBackgroundColor(context.getResources().getColor(android.R.color.holo_blue_bright));
+                        break;
+                    case Bill.STATUS_CONFIRMED:
+                        btnAdvance.setBackgroundColor(context.getResources().getColor(android.R.color.holo_purple));
+                        break;
+                    case Bill.STATUS_PREPARING:
+                        btnAdvance.setBackgroundColor(context.getResources().getColor(android.R.color.holo_blue_dark));
+                        break;
+                    case Bill.STATUS_READY:
+                        btnAdvance.setBackgroundColor(context.getResources().getColor(android.R.color.holo_orange_light));
+                        break;
+                    case Bill.STATUS_DELIVERING:
+                        btnAdvance.setBackgroundColor(context.getResources().getColor(android.R.color.holo_green_dark));
+                        break;
+                    default:
+                        btnAdvance.setBackgroundColor(context.getResources().getColor(android.R.color.holo_green_dark));
+                        break;
+                }
+            }
+            
+            // Show cancel button for orders that can be cancelled
+            if (order.canCancel()) {
+                btnCancel.setVisibility(View.VISIBLE);
+                btnCancel.setText("Hủy Đơn");
+                btnCancel.setBackgroundColor(context.getResources().getColor(android.R.color.holo_red_dark));
             }
             
             // Set click listeners
-            btnAccept.setOnClickListener(v -> {
+            btnAdvance.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onAcceptOrder(order);
+                    listener.onAdvanceOrderStatus(order);
                 }
             });
             
-            btnComplete.setOnClickListener(v -> {
+            btnCancel.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onCompleteOrder(order);
+                    listener.onCancelOrder(order);
                 }
             });
             

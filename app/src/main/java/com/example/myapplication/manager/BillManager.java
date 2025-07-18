@@ -356,7 +356,53 @@ public class BillManager {
     }
     
     /**
-     * Update bill status
+     * Update bill status for any user (Owner function)
+     */
+    public boolean updateBillStatusForOwner(int billId, String newStatus) {
+        try {
+            // Search through all users' bills
+            for (String key : prefs.getAll().keySet()) {
+                if (key.endsWith(KEY_BILLS_SUFFIX)) {
+                    String json = prefs.getString(key, "");
+                    if (!json.isEmpty()) {
+                        Type type = new TypeToken<List<Bill>>(){}.getType();
+                        List<Bill> userBills = gson.fromJson(json, type);
+                        
+                        if (userBills != null) {
+                            boolean updated = false;
+                            for (Bill bill : userBills) {
+                                if (bill.getId() == billId) {
+                                    bill.setStatus(newStatus);
+                                    bill.setLastUpdated(new Date());
+                                    updated = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (updated) {
+                                // Save updated bills back to that user's data
+                                String updatedJson = gson.toJson(userBills);
+                                prefs.edit().putString(key, updatedJson).apply();
+                                
+                                Logger.d(TAG, "Updated bill #" + billId + " status to: " + newStatus);
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            Logger.w(TAG, "Bill #" + billId + " not found for status update");
+            return false;
+            
+        } catch (Exception e) {
+            Logger.e(TAG, "Error updating bill status for owner", e);
+            return false;
+        }
+    }
+    
+    /**
+     * Update bill status for current user
      */
     public void updateBillStatus(int billId, String newStatus) {
         try {
@@ -486,6 +532,84 @@ public class BillManager {
         } catch (Exception e) {
             Logger.e(TAG, "Error getting all bills from all users", e);
             return new ArrayList<>();
+        }
+    }
+    
+    /**
+     * Get orders by status from all users (for Owner)
+     */
+    public List<Bill> getAllOrdersByStatus(String status) {
+        try {
+            List<Bill> allBills = getAllBillsFromAllUsers();
+            return allBills.stream()
+                          .filter(bill -> status.equals(bill.getStatus()))
+                          .collect(Collectors.toList());
+                          
+        } catch (Exception e) {
+            Logger.e(TAG, "Error getting all orders by status", e);
+            return new ArrayList<>();
+        }
+    }
+    
+    /**
+     * Get order counts by status for Owner dashboard
+     */
+    public int getOrderCountByStatus(String status) {
+        try {
+            return getAllOrdersByStatus(status).size();
+        } catch (Exception e) {
+            Logger.e(TAG, "Error getting order count by status", e);
+            return 0;
+        }
+    }
+    
+    /**
+     * Get total revenue from all users (for Owner)
+     */
+    public double getTotalRevenue() {
+        try {
+            List<Bill> allBills = getAllBillsFromAllUsers();
+            double total = 0;
+            for (Bill bill : allBills) {
+                if (!Bill.STATUS_CANCELLED.equals(bill.getStatus())) {
+                    total += bill.getTotalAmount();
+                }
+            }
+            return total;
+            
+        } catch (Exception e) {
+            Logger.e(TAG, "Error getting total revenue", e);
+            return 0;
+        }
+    }
+    
+    /**
+     * Get daily revenue (for Owner)
+     */
+    public double getDailyRevenue() {
+        try {
+            List<Bill> allBills = getAllBillsFromAllUsers();
+            double total = 0;
+            
+            // Get today's date
+            Date today = new Date();
+            java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("yyyy-MM-dd");
+            String todayStr = dateFormat.format(today);
+            
+            for (Bill bill : allBills) {
+                if (!Bill.STATUS_CANCELLED.equals(bill.getStatus())) {
+                    String billDateStr = dateFormat.format(bill.getOrderDate());
+                    if (todayStr.equals(billDateStr)) {
+                        total += bill.getTotalAmount();
+                    }
+                }
+            }
+            
+            return total;
+            
+        } catch (Exception e) {
+            Logger.e(TAG, "Error getting daily revenue", e);
+            return 0;
         }
     }
 }
