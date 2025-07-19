@@ -25,13 +25,16 @@ public class BillManager {
     
     private static final String PREFS_NAME = "bill_prefs";
     private static final String KEY_BILLS_SUFFIX = "_bills";        // Will be: {username}_bills
-    private static final String KEY_NEXT_ID_SUFFIX = "_next_id";    // Will be: {username}_next_id
+    private static final String KEY_GLOBAL_NEXT_ID = "global_next_bill_id";  // Global unique ID
     
     private static BillManager instance;
     private SharedPreferences prefs;
     private Gson gson;
     private Context context;
     private String currentUserBills = "";    // Track current user's bills
+    
+    // FIXED: Add synchronization lock for thread safety
+    private static final Object ID_LOCK = new Object();
     
     private BillManager(Context context) {
         this.context = context;
@@ -86,8 +89,8 @@ public class BillManager {
                 return null;
             }
             
-            // Get next bill ID for this user
-            int billId = getNextBillId();
+            // Get next GLOBAL unique bill ID
+            int billId = getNextGlobalBillId();
             
             // Create bill items from cart items
             List<Bill.BillItem> billItems = new ArrayList<>();
@@ -102,11 +105,11 @@ public class BillManager {
                 billItems.add(billItem);
             }
             
-            // Create new bill
-            Bill bill = new Bill(billId, customerName, new ArrayList<>(), totalAmount,
+            // Create new bill - FIX: Pass cartItems để giữ backward compatibility
+            Bill bill = new Bill(billId, customerName, cartItems, totalAmount,
                                deliveryAddress, phone, fullName, new Date(), Bill.STATUS_PENDING);
             
-            // Set bill items
+            // Set bill items (primary data)
             bill.setBillItems(billItems);
             
             // Save bill
@@ -199,28 +202,65 @@ public class BillManager {
     }
     
     /**
-     * Lấy ID tiếp theo cho hóa đơn của user hiện tại
+     * FIXED: Thread-safe và đơn giản hóa logic tạo ID để tránh trùng lặp
      */
-    private int getNextBillId() {
-        try {
-            if (currentUserBills.isEmpty()) {
-                Logger.w(TAG, "No current user, returning default bill ID");
-                return 1;
+    private int getNextGlobalBillId() {
+        synchronized (ID_LOCK) {
+            try {
+                // Step 1: Get current max ID from SharedPreferences
+                int nextId = prefs.getInt(KEY_GLOBAL_NEXT_ID, 1);
+                
+                // Step 2: Find actual max ID from all existing bills (safety check)
+                int actualMaxId = findActualMaxBillId();
+                
+                // Step 3: Use the higher value to ensure no collision
+                int safeId = Math.max(nextId, actualMaxId + 1);
+                
+                // Step 4: Update the stored next ID for future use
+                prefs.edit().putInt(KEY_GLOBAL_NEXT_ID, safeId + 1).apply();
+                
+                Logger.d(TAG, "Generated safe bill ID: " + safeId + 
+                         " (stored next: " + nextId + ", actual max: " + actualMaxId + ")");
+                
+                return safeId;
+                
+            } catch (Exception e) {
+                Logger.e(TAG, "Error in getNextGlobalBillId", e);
+                // Fallback: Use timestamp-based unique ID
+                int fallbackId = (int) (System.currentTimeMillis() % 1000000);
+                Logger.w(TAG, "Using fallback ID: " + fallbackId);
+                return fallbackId;
             }
-            
-            String nextIdKey = currentUserBills + KEY_NEXT_ID_SUFFIX;
-            int nextId = prefs.getInt(nextIdKey, 1);
-            
-            // Update next ID for this user
-            prefs.edit().putInt(nextIdKey, nextId + 1).apply();
-            
-            Logger.d(TAG, "Generated bill ID: " + nextId + " for user: " + currentUserBills);
-            return nextId;
-            
-        } catch (Exception e) {
-            Logger.e(TAG, "Error getting next bill ID", e);
-            return 1;
         }
+    }
+    
+    /**
+     * FIXED: Tìm ID lớn nhất thực tế từ tất cả bills
+     */
+    private int findActualMaxBillId() {
+        int maxId = 0;
+        
+        try {
+            // Scan through all users' bills
+            for (String key : prefs.getAll().keySet()) {
+                if (key.endsWith(KEY_BILLS_SUFFIX)) {
+                    String json = prefs.getString(key, "");
+                    if (!json.isEmpty()) {
+                        Type type = new TypeToken<List<Bill>>(){}.getType();
+                        List<Bill> userBills = gson.fromJson(json, type);
+                        if (userBills != null) {
+                            for (Bill bill : userBills) {
+                                maxId = Math.max(maxId, bill.getId());
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Logger.e(TAG, "Error finding actual max bill ID", e);
+        }
+        
+        return maxId;
     }
     
     /**
@@ -341,11 +381,9 @@ public class BillManager {
             }
             
             String billsKey = currentUserBills + KEY_BILLS_SUFFIX;
-            String nextIdKey = currentUserBills + KEY_NEXT_ID_SUFFIX;
             
             prefs.edit()
                  .remove(billsKey)
-                 .remove(nextIdKey)
                  .apply();
                  
             Logger.d(TAG, "Cleared all bills for user: " + currentUserBills);
@@ -356,48 +394,57 @@ public class BillManager {
     }
     
     /**
-     * Update bill status for any user (Owner function)
+     * FIXED: Update bill status for any user with proper synchronization (Owner function)
      */
     public boolean updateBillStatusForOwner(int billId, String newStatus) {
-        try {
-            // Search through all users' bills
-            for (String key : prefs.getAll().keySet()) {
-                if (key.endsWith(KEY_BILLS_SUFFIX)) {
-                    String json = prefs.getString(key, "");
-                    if (!json.isEmpty()) {
-                        Type type = new TypeToken<List<Bill>>(){}.getType();
-                        List<Bill> userBills = gson.fromJson(json, type);
-                        
-                        if (userBills != null) {
-                            boolean updated = false;
-                            for (Bill bill : userBills) {
-                                if (bill.getId() == billId) {
-                                    bill.setStatus(newStatus);
-                                    bill.setLastUpdated(new Date());
-                                    updated = true;
-                                    break;
-                                }
-                            }
+        synchronized (ID_LOCK) {
+            try {
+                Logger.d(TAG, "Attempting to update bill #" + billId + " to status: " + newStatus);
+                
+                // Search through all users' bills
+                int totalBillsSearched = 0;
+                for (String key : prefs.getAll().keySet()) {
+                    if (key.endsWith(KEY_BILLS_SUFFIX)) {
+                        Logger.d(TAG, "Searching in bills key: " + key);
+                        String json = prefs.getString(key, "");
+                        if (!json.isEmpty()) {
+                            Type type = new TypeToken<List<Bill>>(){}.getType();
+                            List<Bill> userBills = gson.fromJson(json, type);
                             
-                            if (updated) {
-                                // Save updated bills back to that user's data
-                                String updatedJson = gson.toJson(userBills);
-                                prefs.edit().putString(key, updatedJson).apply();
+                            if (userBills != null) {
+                                totalBillsSearched += userBills.size();
+                                boolean updated = false;
+                                for (Bill bill : userBills) {
+                                    Logger.d(TAG, "Checking bill #" + bill.getId() + " (status: " + bill.getStatus() + ")");
+                                    if (bill.getId() == billId) {
+                                        Logger.d(TAG, "Found matching bill #" + billId + ", updating status from " + bill.getStatus() + " to " + newStatus);
+                                        bill.setStatus(newStatus);
+                                        bill.setLastUpdated(new Date());
+                                        updated = true;
+                                        break;
+                                    }
+                                }
                                 
-                                Logger.d(TAG, "Updated bill #" + billId + " status to: " + newStatus);
-                                return true;
+                                if (updated) {
+                                    // Save updated bills back to that user's data
+                                    String updatedJson = gson.toJson(userBills);
+                                    prefs.edit().putString(key, updatedJson).apply();
+                                    
+                                    Logger.d(TAG, "Successfully updated bill #" + billId + " status to: " + newStatus + " in key: " + key);
+                                    return true;
+                                }
                             }
                         }
                     }
                 }
+                
+                Logger.w(TAG, "Bill #" + billId + " not found for status update (searched " + totalBillsSearched + " bills total)");
+                return false;
+                
+            } catch (Exception e) {
+                Logger.e(TAG, "Error updating bill status for owner", e);
+                return false;
             }
-            
-            Logger.w(TAG, "Bill #" + billId + " not found for status update");
-            return false;
-            
-        } catch (Exception e) {
-            Logger.e(TAG, "Error updating bill status for owner", e);
-            return false;
         }
     }
     
@@ -610,6 +657,106 @@ public class BillManager {
         } catch (Exception e) {
             Logger.e(TAG, "Error getting daily revenue", e);
             return 0;
+        }
+    }
+    
+    /**
+     * FIXED: Phương thức kiểm tra và sửa chữa ID trùng lặp
+     */
+    public void validateAndFixDuplicateIds() {
+        synchronized (ID_LOCK) {
+            try {
+                Logger.d(TAG, "Starting duplicate ID validation...");
+                
+                List<Integer> allIds = new ArrayList<>();
+                List<String> allKeys = new ArrayList<>();
+                
+                // Collect all bill IDs
+                for (String key : prefs.getAll().keySet()) {
+                    if (key.endsWith(KEY_BILLS_SUFFIX)) {
+                        String json = prefs.getString(key, "");
+                        if (!json.isEmpty()) {
+                            Type type = new TypeToken<List<Bill>>(){}.getType();
+                            List<Bill> userBills = gson.fromJson(json, type);
+                            if (userBills != null) {
+                                for (Bill bill : userBills) {
+                                    allIds.add(bill.getId());
+                                }
+                                allKeys.add(key);
+                            }
+                        }
+                    }
+                }
+                
+                // Check for duplicates
+                List<Integer> duplicates = new ArrayList<>();
+                for (int i = 0; i < allIds.size(); i++) {
+                    for (int j = i + 1; j < allIds.size(); j++) {
+                        if (allIds.get(i).equals(allIds.get(j))) {
+                            if (!duplicates.contains(allIds.get(i))) {
+                                duplicates.add(allIds.get(i));
+                            }
+                        }
+                    }
+                }
+                
+                if (duplicates.isEmpty()) {
+                    Logger.d(TAG, "No duplicate IDs found. Total bills: " + allIds.size());
+                } else {
+                    Logger.w(TAG, "Found " + duplicates.size() + " duplicate IDs: " + duplicates);
+                    fixDuplicateIdsInternal(duplicates, allKeys);
+                }
+                
+            } catch (Exception e) {
+                Logger.e(TAG, "Error in duplicate ID validation", e);
+            }
+        }
+    }
+    
+    /**
+     * FIXED: Sửa chữa ID trùng lặp bằng cách gán lại ID mới duy nhất
+     */
+    private void fixDuplicateIdsInternal(List<Integer> duplicateIds, List<String> allKeys) {
+        try {
+            int maxId = findActualMaxBillId();
+            int nextAvailableId = maxId + 1;
+            
+            Logger.d(TAG, "Starting to fix duplicate IDs. Next available ID: " + nextAvailableId);
+            
+            for (String key : allKeys) {
+                String json = prefs.getString(key, "");
+                if (!json.isEmpty()) {
+                    Type type = new TypeToken<List<Bill>>(){}.getType();
+                    List<Bill> userBills = gson.fromJson(json, type);
+                    
+                    if (userBills != null) {
+                        boolean hasChanges = false;
+                        for (Bill bill : userBills) {
+                            if (duplicateIds.contains(bill.getId())) {
+                                int oldId = bill.getId();
+                                bill.setId(nextAvailableId);
+                                Logger.d(TAG, "Fixed duplicate: Changed bill ID from " + oldId + " to " + nextAvailableId + " in " + key);
+                                nextAvailableId++;
+                                hasChanges = true;
+                            }
+                        }
+                        
+                        if (hasChanges) {
+                            // Save the updated bills
+                            String updatedJson = gson.toJson(userBills);
+                            prefs.edit().putString(key, updatedJson).apply();
+                            Logger.d(TAG, "Saved fixed bills for " + key);
+                        }
+                    }
+                }
+            }
+            
+            // Update the global next ID
+            prefs.edit().putInt(KEY_GLOBAL_NEXT_ID, nextAvailableId).apply();
+            Logger.d(TAG, "Updated global next ID to: " + nextAvailableId);
+            
+        } catch (Exception e) {
+            Logger.e(TAG, "Error fixing duplicate IDs", e);
         }
     }
 }

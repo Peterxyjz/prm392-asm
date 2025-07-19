@@ -70,7 +70,7 @@ public class Bill {
                 String deliveryAddress, String phone, String fullName, Date orderDate, String status) {
         this.billId = billId;
         this.username = username;
-        this.items = items;
+        this.items = items != null ? items : new ArrayList<>();
         this.billItems = new ArrayList<>();
         this.totalAmount = totalAmount;
         this.deliveryAddress = deliveryAddress;
@@ -196,27 +196,47 @@ public class Bill {
     }
     
     /**
-     * Tính số lượng món trong đơn hàng
+     * Tính số lượng món trong đơn hàng - FIX: Ưu tiên billItems trước, sau đó mới đến items
      */
     public int getTotalItemCount() {
         int total = 0;
-        for (CartItem item : items) {
-            total += item.getQuantity();
+        
+        // Ưu tiên sử dụng billItems nếu có
+        if (billItems != null && !billItems.isEmpty()) {
+            for (BillItem item : billItems) {
+                total += item.getQuantity();
+            }
+        } else if (items != null && !items.isEmpty()) {
+            // Fallback to legacy items
+            for (CartItem item : items) {
+                total += item.getQuantity();
+            }
         }
+        
         return total;
     }
     
     /**
-     * Lấy tên món đầu tiên + "và X món khác" nếu có nhiều món
+     * Lấy tên món đầu tiên + "và X món khác" nếu có nhiều món - FIX: Ưu tiên billItems
      */
     public String getItemsSummary() {
-        if (items.isEmpty()) return "Không có món nào";
-        
-        if (items.size() == 1) {
-            return items.get(0).getFoodItem().getName();
-        } else {
-            return items.get(0).getFoodItem().getName() + " và " + (items.size() - 1) + " món khác";
+        // Ưu tiên sử dụng billItems nếu có
+        if (billItems != null && !billItems.isEmpty()) {
+            if (billItems.size() == 1) {
+                return billItems.get(0).getFoodName();
+            } else {
+                return billItems.get(0).getFoodName() + " và " + (billItems.size() - 1) + " món khác";
+            }
+        } else if (items != null && !items.isEmpty()) {
+            // Fallback to legacy items
+            if (items.size() == 1) {
+                return items.get(0).getFoodItem().getName();
+            } else {
+                return items.get(0).getFoodItem().getName() + " và " + (items.size() - 1) + " món khác";
+            }
         }
+        
+        return "Không có món nào";
     }
     
     /**
