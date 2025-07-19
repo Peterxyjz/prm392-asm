@@ -49,7 +49,12 @@ public class LoginActivity extends AppCompatActivity {
         
         // Kiểm tra đã đăng nhập chưa
         if (userManager.isLoggedIn()) {
-            navigateToMain();
+            // FIXED: Kiểm tra role để chuyển hướng đúng
+            if (userManager.isCurrentUserOwner()) {
+                navigateToOwnerDashboard();
+            } else {
+                navigateToMain();
+            }
             return;
         }
         
@@ -227,7 +232,12 @@ public class LoginActivity extends AppCompatActivity {
                 boolean success = userManager.login(username);
                 if (success) {
                     showSuccessMessage("Đăng nhập thành công!");
-                    navigateToMain();
+                    // FIXED: Kiểm tra role sau khi đăng nhập
+                    if (userManager.isCurrentUserOwner()) {
+                        navigateToOwnerDashboard();
+                    } else {
+                        navigateToMain();
+                    }
                 } else {
                     showErrorMessage("Đăng nhập thất bại");
                 }

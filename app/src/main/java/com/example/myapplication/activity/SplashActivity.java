@@ -24,8 +24,16 @@ public class SplashActivity extends AppCompatActivity {
             
             Intent intent;
             if (userManager.isLoggedIn()) {
-                intent = new Intent(SplashActivity.this, MainActivity.class);
+                // FIXED: Kiểm tra role để chuyển hướng đúng
+                if (userManager.isCurrentUserOwner()) {
+                    // Owner -> chuyển đến OwnerDashboardActivity
+                    intent = new Intent(SplashActivity.this, com.example.myapplication.activity.owner.OwnerDashboardActivity.class);
+                } else {
+                    // Customer -> chuyển đến MainActivity
+                    intent = new Intent(SplashActivity.this, MainActivity.class);
+                }
             } else {
+                // Chưa đăng nhập -> chuyển đến LoginActivity
                 intent = new Intent(SplashActivity.this, LoginActivity.class);
             }
             

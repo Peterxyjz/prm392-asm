@@ -59,6 +59,16 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         
+        // FIXED: Kiểm tra role của user để chuyển hướng đúng
+        if (userManager.isCurrentUserOwner()) {
+            // User là Owner -> chuyển đến OwnerDashboardActivity
+            Intent intent = new Intent(this, com.example.myapplication.activity.owner.OwnerDashboardActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            finish();
+            return;
+        }
+        
         // Đã đăng nhập -> thiết lập giao diện
         setContentView(R.layout.activity_main);
         
